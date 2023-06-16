@@ -171,6 +171,23 @@ Frame::Frame(const cv::Mat &imGray, const cv::Mat &imDepth, const double &timeSt
 }
 
 
+/**
+ * @brief Constructs a new Frame object for monocular ORB-SLAM2:
+ *      Computes the scale pyramid for the image, extracts ORB features, 
+ *      undistorts keypoints, and assigns features to a grid for efficient spatial queries. 
+ *      It also initializes various other properties of the Frame, such as the camera intrinsics 
+ *      and extrinsics, and the grid element size.
+ *      mvuRight, mvDepth, mvpMapPoints, and mvbOutlier are not used.
+ *
+ * @param imGray The grayscale image for the frame.
+ * @param timeStamp The timestamp of the frame.
+ * @param extractor The ORB extractor to use for feature extraction.
+ * @param voc The ORB vocabulary to use for feature description.
+ * @param K The camera calibration matrix.
+ * @param distCoef The distortion coefficients of the camera.
+ * @param bf The baseline times the focal length (for stereo cameras).
+ * @param thDepth The depth threshold.
+ */
 Frame::Frame(const cv::Mat &imGray, const double &timeStamp, ORBextractor* extractor,ORBVocabulary* voc, cv::Mat &K, cv::Mat &distCoef, const float &bf, const float &thDepth)
     :mpORBvocabulary(voc),mpORBextractorLeft(extractor),mpORBextractorRight(static_cast<ORBextractor*>(NULL)),
      mTimeStamp(timeStamp), mK(K.clone()),mDistCoef(distCoef.clone()), mbf(bf), mThDepth(thDepth)
@@ -401,6 +418,12 @@ void Frame::ComputeBoW()
     }
 }
 
+/**
+ * @brief Corrects the distortion in the keypoints detected in the frame.
+ * The distortion is caused by the camera lens and is defined by the distortion 
+ * coefficients stored in mDistCoef. The function modifies the mvKeysUn member of 
+ * the Frame class, replacing its contents with the undistorted keypoints.
+*/
 void Frame::UndistortKeyPoints()
 {
     if(mDistCoef.at<float>(0)==0.0)

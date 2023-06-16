@@ -105,6 +105,11 @@ static float IC_Angle(const Mat& image, Point2f pt,  const vector<int> & u_max)
 
 
 const float factorPI = (float)(CV_PI/180.f);
+/// @brief Computes the ORB descriptor for a given keypoint in an image.
+/// @param kpt A KeyPoint object that specifies the location and scale of the keypoint in the image.
+/// @param img The image in which the keypoint is located.
+/// @param pattern A pointer to an array of Points that specifies the pattern of pixel comparisons to be made in the BRIEF descriptor.
+/// @param desc A pointer to a uchar array where the descriptor will be stored. The function modifies this array, filling it with the calculated descriptor.
 static void computeOrbDescriptor(const KeyPoint& kpt,
                                  const Mat& img, const Point* pattern,
                                  uchar* desc)
@@ -761,7 +766,8 @@ vector<cv::KeyPoint> ORBextractor::DistributeOctTree(const vector<cv::KeyPoint>&
 
     return vResultKeys;
 }
-
+/// @brief Detect FAST keypoints in `this->mvImagePyramid` and store it in the given `allKeypoints` vector.
+/// @param allKeypoints Vector of each level's keypoints to be filled by the function.
 void ORBextractor::ComputeKeyPointsOctTree(vector<vector<KeyPoint> >& allKeypoints)
 {
     allKeypoints.resize(nlevels);
@@ -1049,9 +1055,10 @@ void ORBextractor::operator()( InputArray _image, InputArray _mask, vector<KeyPo
     Mat image = _image.getMat();
     assert(image.type() == CV_8UC1 );
 
-    // Pre-compute the scale pyramid
+    // Pre-compute the scale pyramid. The result is stored in mvImagePyramid.
     ComputePyramid(image);
 
+    // Vector of keypoints for each level of the pyramid
     vector < vector<KeyPoint> > allKeypoints;
     ComputeKeyPointsOctTree(allKeypoints);
     //ComputeKeyPointsOld(allKeypoints);
@@ -1087,6 +1094,7 @@ void ORBextractor::operator()( InputArray _image, InputArray _mask, vector<KeyPo
 
         // Compute the descriptors
         Mat desc = descriptors.rowRange(offset, offset + nkeypointsLevel);
+        // Fill desc with the computed descriptors for each of the keypoints
         computeDescriptors(workingMat, keypoints, desc, pattern);
 
         offset += nkeypointsLevel;

@@ -265,6 +265,7 @@ cv::Mat Tracking::GrabImageMonocular(const cv::Mat &im, const double &timestamp)
 
     Track();
 
+    // Return the clone of the pose
     return mCurrentFrame.mTcw.clone();
 }
 
