@@ -1,6 +1,9 @@
 #include "VPIORBNetStream.h"
 #include <iostream>
 
+// If true the program will block the thread and wait for message to be received before sending the next frame
+#define BLOCKING_MODE true
+
 namespace ORB_SLAM2
 {
   // Constructor and destructor for the VPIORBNetStream class
@@ -64,8 +67,8 @@ namespace ORB_SLAM2
     try
     {
       zmq::message_t temp;
-      socket.recv(temp, zmq::recv_flags::dontwait);
-      socket.send(request, zmq::send_flags::dontwait);
+      socket.recv(temp, BLOCKING_MODE ? zmq::recv_flags::none : zmq::recv_flags::dontwait);
+      socket.send(request, BLOCKING_MODE ? zmq::send_flags::none : zmq::send_flags::dontwait); 
     }
     catch (zmq::error_t e)
     {
