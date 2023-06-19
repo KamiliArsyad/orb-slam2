@@ -48,7 +48,7 @@ namespace ORB_SLAM2
     encodedKeypoints.erase(0, numKeypointsStr.length() + 1);
 
     // Allocate memory for the keypoints and descriptors
-    frameData.keypoints = new cv::KeyPoint[frameData.numKeypoints]; 
+    frameData.keypoints = new cv::KeyPoint[frameData.numKeypoints];
     frameData.descriptors = new std::bitset<256>[frameData.numKeypoints];
 
     // Decode the keypoints and descriptors
@@ -91,7 +91,7 @@ namespace ORB_SLAM2
     {
       zmq::message_t request(1);
       memcpy(request.data(), "1", 1);
-      
+
       // Make sure to block until the message is received
       socket.send(request, zmq::send_flags::none);
       socket.recv(reply, zmq::recv_flags::none);
@@ -119,7 +119,19 @@ namespace ORB_SLAM2
 
   void ARCHandler::writeDescriptorsToOutputArray(FrameData frameData, cv::OutputArray descriptors)
   {
-    cv::Mat descriptorsMat(frameData.numKeypoints, 32, CV_8UC1);
+    cv::Mat descriptorsMat;
+
+    // Initialize descriptors
+    if (frameData.numKeypoints == 0)
+    {
+      descriptors.release();
+    }
+    else
+    {
+      descriptors.create(frameData.numKeypoints, 32, CV_8U);
+      descriptorsMat = descriptors.getMat();
+    }
+
     for (int i = 0; i < frameData.numKeypoints; ++i)
     {
       for (int j = 0; j < 32; ++j)
@@ -127,6 +139,7 @@ namespace ORB_SLAM2
         descriptorsMat.at<uchar>(i, j) = frameData.descriptors[i][j];
       }
     }
+
     descriptorsMat.copyTo(descriptors);
   }
 

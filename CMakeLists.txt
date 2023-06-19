@@ -123,3 +123,7 @@ target_link_libraries(mono_euroc ${PROJECT_NAME})
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/Dev)
 add_executable(edge Dev/Edge.cpp)
 target_link_libraries(edge ${PROJECT_NAME})
+
+# Build cloud
+add_executable(cloud Dev/CloudMonocular.cpp)
+target_link_libraries(cloud ${PROJECT_NAME})

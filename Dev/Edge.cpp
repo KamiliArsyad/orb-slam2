@@ -73,7 +73,7 @@ int main(int argc, char *argv[])
   int returnValue = 0;
 
   // Parse parameters
-  if (argc != 3)
+  if (argc != 4)
   {
     throw std::runtime_error(std::string("Usage: ") + argv[0] + " <cpu|cuda> <path_to_image_folder>" + " <path_to_times_file>");
   }
