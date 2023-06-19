@@ -39,6 +39,7 @@ endif()
 find_package(Eigen3 3.1.0 REQUIRED NO_MODULE)
 find_package(Pangolin REQUIRED)
 find_package(Zeromq REQUIRED)
+find_package(vpi 2.2 REQUIRED)
 
 include_directories(
 ${PROJECT_SOURCE_DIR}
@@ -70,6 +71,7 @@ src/Sim3Solver.cc
 src/Initializer.cc
 src/Viewer.cc
 src/ARCHandler.cpp
+src/VPIORBNetStream.cpp
 )
 
 # Not sure what's going on here but eh it works.
@@ -81,6 +83,7 @@ ${PROJECT_SOURCE_DIR}/Thirdparty/DBoW2/lib/libDBoW2.so
 ${PROJECT_SOURCE_DIR}/Thirdparty/g2o/lib/libg2o.so
 ${ZEROMQ_LIBRARIES}
 zmq
+vpi
 )
 
 # Build examples
@@ -116,3 +119,7 @@ add_executable(mono_euroc
 Examples/Monocular/mono_euroc.cc)
 target_link_libraries(mono_euroc ${PROJECT_NAME})
 
+# Build edge
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/Dev)
+add_executable(edge Dev/Edge.cpp)
+target_link_libraries(edge ${PROJECT_NAME})
