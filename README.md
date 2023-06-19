@@ -1,6 +1,8 @@
-# ORB-SLAM2 - Updated for C++14 and OpenCV 4
-Below is the  README file from the original repository.
+# ARCH-ORB-SLAM2
+Forked from mateomd-dev as setting up the support for C++14 and OpenCV 4 was quite painful. I added a system called ARCH - Asynchronous Remote Computation Handler for ORB-SLAM2 which I won't elaborate for now.
+The system is still in development and is not ready for use.
 
+Below is the README file from the original repository.
 # ORB-SLAM2
 
 **Authors:** [Raul Mur-Artal](http://webdiis.unizar.es/~raulmur/), [Juan D. Tardos](http://webdiis.unizar.es/~jdtardos/), [J. M. M. Montiel](http://webdiis.unizar.es/~josemari/) and [Dorian Galvez-Lopez](http://doriangalvez.com/) ([DBoW2](https://github.com/dorian3d/DBoW2))
