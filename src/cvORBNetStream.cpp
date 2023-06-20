@@ -1,4 +1,4 @@
-#include "VPIORBNetStream.h"
+#include "cvORBNetStream.h"
 #include <iostream>
 
 // If true the program will block the thread and wait for message to be received before sending the next frame
@@ -7,13 +7,13 @@
 namespace ORB_SLAM2
 {
   // Constructor and destructor for the VPIORBNetStream class
-  VPIORBNetStream::VPIORBNetStream(int port)
+  cvORBNetStream::cvORBNetStream(int port)
       : port(port), context(zmq::context_t(1)), socket(zmq::socket_t(context, zmq::socket_type::rep))
   {
     socket.bind("tcp://*:" + std::to_string(port));
   }
 
-  VPIORBNetStream::~VPIORBNetStream()
+  cvORBNetStream::~cvORBNetStream()
   {
     socket.close();
   }
@@ -24,55 +24,32 @@ namespace ORB_SLAM2
    * <frameNumber>;<numKeypoints>;<desc1>;<x1>,<y1>;<desc2>;<x2>,<y2>;...
    * The descriptors are encoded as 32 characters ASCII strings for efficiency.
    */
-  std::string VPIORBNetStream::encodeKeypoints(VPIArray keypointsArray, VPIArray descriptorsArray, int numKeypoints, int frameNumber)
+  std::string cvORBNetStream::encodeKeypoints(std::vector<KeyPoint> keypointsArray, Mat descriptorsArray, int numKeypoints, int frameNumber)
   {
     std::ostringstream ss;
     ss << frameNumber << ";" << numKeypoints << ";";
 
-    // Lock the arrays to access their data
-    VPIArrayData keypointsData, descriptorsData;
-    vpiArrayLockData(keypointsArray, VPI_LOCK_READ, VPI_ARRAY_BUFFER_HOST_AOS, &keypointsData);
-    vpiArrayLockData(descriptorsArray, VPI_LOCK_READ, VPI_ARRAY_BUFFER_HOST_AOS, &descriptorsData);
-    vpiArrayUnlock(keypointsArray);
-    vpiArrayUnlock(descriptorsArray);
-
-    VPIKeypointF32 *keypoints = (VPIKeypointF32 *)keypointsData.buffer.aos.data;
-
     // Encode the keypoints and descriptors
     for (int i = 0; i < numKeypoints; ++i)
     {
-      // Copy the descriptor to a bitset
-      std::bitset<256> descriptor; 
-
-      for (int j = 0; j < 4; ++j)
-      {
-        descriptor |= ((uint64_t *)descriptorsData.buffer.aos.data)[i * 4 + j];
-        if (j < 3) descriptor <<= 64;
-      }
-     
       // Encode the descriptor to 32 characters
       for (int j = 0; j < 32; ++j)
       {
-        unsigned char byte = 0;
+        unsigned char byte = descriptorsArray.at<unsigned char>(i, j);
 
-        for (int k = 0; k < 8; ++k)
-        {
-          byte |= descriptor[j * 8 + k] << k;
-        }
-
-        ss << byte; 
+        ss << byte;
       }
-      
+
       ss << ";";
 
       // Encode the keypoint
-      ss << keypoints[i].x << "," << keypoints[i].y << ";";
+      ss << keypointsArray[i].pt.x << "," << keypointsArray[i].pt.y << ";";
     }
 
     return ss.str();
   }
 
-  int VPIORBNetStream::sendFrame(std::string encodedFrame)
+  int cvORBNetStream::sendFrame(std::string encodedFrame)
   {
     zmq::message_t request(encodedFrame.size());
     memcpy(request.data(), encodedFrame.c_str(), encodedFrame.size());
@@ -82,7 +59,7 @@ namespace ORB_SLAM2
     {
       zmq::message_t temp;
       socket.recv(temp, BLOCKING_MODE ? zmq::recv_flags::none : zmq::recv_flags::dontwait);
-      socket.send(request, BLOCKING_MODE ? zmq::send_flags::none : zmq::send_flags::dontwait); 
+      socket.send(request, BLOCKING_MODE ? zmq::send_flags::none : zmq::send_flags::dontwait);
     }
     catch (zmq::error_t e)
     {
@@ -95,11 +72,11 @@ namespace ORB_SLAM2
 
   /// @brief Encode and send a processed frame feature descriptors and keypoints.
   /// @param keypointsArray
-  /// @param descriptorsArray 
-  /// @param numKeypoints 
-  /// @param frameNumber 
+  /// @param descriptorsArray
+  /// @param numKeypoints
+  /// @param frameNumber
   /// @return 0 if successful, -1 otherwise.
-  int VPIORBNetStream::encodeAndSendFrame(VPIArray keypointsArray, VPIArray descriptorsArray, int numKeypoints, int frameNumber)
+  int cvORBNetStream::encodeAndSendFrame(std::vector<KeyPoint> keypointsArray, Mat descriptorsArray, int numKeypoints, int frameNumber)
   {
     std::string encodedFrame = encodeKeypoints(keypointsArray, descriptorsArray, numKeypoints, frameNumber);
     return sendFrame(encodedFrame);
