@@ -211,10 +211,22 @@ Frame::Frame(const cv::Mat &imGray, const double &timeStamp, ORBextractor* extra
     cv::Mat vTestDescriptors;
     
     archandler->getFeatures(mvKeys, mDescriptors);
-    std::cout << "Received " << vTestKeypoints.size() << " keypoints" << std::endl;
+    std::cout << "Received " << mvKeys.size() << " keypoints" << std::endl;
+
+    // DEBUG -----------------------
+    // Print out the first 10 keypoints and their respective ORB descriptors (binary string)
+    // for (int i = 0; i < 10; i++) {
+    //     std::cout << "KeyPoint " << i << ": " << mvKeys[i].pt << " " << mDescriptors.row(i) << std::endl;
+    // }
 
     // ORB extraction
+    // if (mnId < 100)
     // ExtractORB(0,imGray);
+    // print out the first 10 keypoints after ORB extraction
+    // for (int i = 0; i < 10; i++) {
+    //     std::cout << "KeyPoint " << i << ": " << mvKeys[i].pt << " " << mDescriptors.row(i) << std::endl;
+    // }
+    // -----------------------------
 
     N = mvKeys.size();
 

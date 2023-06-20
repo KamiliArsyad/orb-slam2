@@ -134,13 +134,21 @@ namespace ORB_SLAM2
 
     for (int i = 0; i < frameData.numKeypoints; ++i)
     {
-      for (int j = 0; j < 32; ++j)
+      unsigned char *ptr = descriptorsMat.ptr<unsigned char>(i);
+      std::bitset<256> &desc = frameData.descriptors[i];
+
+      for (int i = 0; i < 32; ++i)
       {
-        descriptorsMat.at<uchar>(i, j) = frameData.descriptors[i][j];
+        unsigned char byte = 0;
+
+        for (int j = 0; j < 8; ++j)
+        {
+          byte |= desc[i * 8 + j] << j;
+        }
+
+        ptr[i] = byte;
       }
     }
-
-    descriptorsMat.copyTo(descriptors);
   }
 
   void ARCHandler::getFeatures(vector<cv::KeyPoint> &keypoints, cv::OutputArray descriptors)

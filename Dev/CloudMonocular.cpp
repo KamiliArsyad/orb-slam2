@@ -76,6 +76,7 @@ int main(int argc, char **argv)
 
     // Main loop
     cv::Mat im;
+    // nImages = 2;
     for(int ni=0; ni<nImages; ni++)
     { 
         // Read image from file
