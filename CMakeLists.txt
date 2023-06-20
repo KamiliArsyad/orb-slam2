@@ -39,7 +39,6 @@ endif()
 find_package(Eigen3 3.1.0 REQUIRED NO_MODULE)
 find_package(Pangolin REQUIRED)
 find_package(Zeromq REQUIRED)
-find_package(vpi 2.2 REQUIRED)
 
 include_directories(
 ${PROJECT_SOURCE_DIR}
@@ -71,7 +70,7 @@ src/Sim3Solver.cc
 src/Initializer.cc
 src/Viewer.cc
 src/ARCHandler.cpp
-src/VPIORBNetStream.cpp
+src/cvORBNetStream.cpp
 )
 
 # Not sure what's going on here but eh it works.
@@ -83,7 +82,6 @@ ${PROJECT_SOURCE_DIR}/Thirdparty/DBoW2/lib/libDBoW2.so
 ${PROJECT_SOURCE_DIR}/Thirdparty/g2o/lib/libg2o.so
 ${ZEROMQ_LIBRARIES}
 zmq
-vpi
 )
 
 # Build examples
