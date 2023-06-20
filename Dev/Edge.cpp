@@ -113,8 +113,9 @@ int main(int argc, char *argv[])
     // Create the stream that will be processed in the provided backend
     vpiCall(vpiStreamCreate, backend, &stream);
     vpiCall(vpiInitORBParams, &orbParams);
-    orbParams.fastParams.intensityThreshold = 30;
-    orbParams.maxFeatures = 1000;
+    orbParams.fastParams.intensityThreshold = 20;
+    orbParams.pyramidLevels = 8;
+    orbParams.maxFeatures = 5000;
     //      ---------------------
 
     // Initialize a timer
@@ -167,11 +168,6 @@ int main(int argc, char *argv[])
     {
       printf("processing frame %d\n", i);
       frame = cv::imread(vstrImageFilenames[i], cv::IMREAD_UNCHANGED);
-
-      if (i < 10)
-        orbParams.fastParams.intensityThreshold = 10;
-      else
-        orbParams.fastParams.intensityThreshold = 30;
 
       // We now wrap the loaded image into a VPIImage object to be used by VPI.
       // VPI won't make a copy of it, so the original image must be in scope at all times.
