@@ -18,6 +18,8 @@
 #include <exception>
 #include <numeric>
 
+#define USE_ANMS false
+
 void LoadImages(const std::string &strImagePath, const std::string &strPathTimes,
                 std::vector<std::string> &vstrImages, std::vector<double> &vTimeStamps);
 
@@ -67,8 +69,8 @@ int main(int argc, char *argv[])
   std::vector<KeyPoint> filteredKeypoints;
   Mat descriptors;
   int nFeatures = 10000;
-  int limit = 2000;
-  Ptr<ORB> orb = ORB::create(nFeatures, 1.2f, 8, 31, 0, 2, ORB::HARRIS_SCORE, 31, 20);
+  int limit = 500;
+  Ptr<ORB> orb = ORB::create(USE_ANMS ? nFeatures : limit, 1.2f, 8, 31, 0, 2, ORB::HARRIS_SCORE, 31, 20);
   //      ---------------------
 
   // Initialize a timer
@@ -99,7 +101,14 @@ int main(int argc, char *argv[])
     // orb->detectAndCompute(frame, cv::Mat(), keypoints, descriptors);
     // int numKeyPoints = keypoints.size();
     orb->detect(frame, keypoints);
-    filteredKeypoints = ANMS_SSC(keypoints, limit, 0.1, frame.cols, frame.rows);
+    if (USE_ANMS)
+    {
+      filteredKeypoints = ANMS_SSC(keypoints, limit, 0.1, frame.cols, frame.rows);
+    }
+    else
+    {
+      filteredKeypoints = keypoints;
+    }
     orb->compute(frame, filteredKeypoints, descriptors);
     int numKeyPoints = filteredKeypoints.size();
 
