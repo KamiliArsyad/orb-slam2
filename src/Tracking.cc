@@ -88,7 +88,7 @@ Tracking::Tracking(System *pSys, ORBVocabulary* pVoc, FrameDrawer *pFrameDrawer,
         fps=30;
 
     // Initialize ARCHandler object
-    mpARCHandler = new ORB_SLAM2::ARCHandler("172.20.86.140", 9999, 0);
+    mpARCHandler = new ORB_SLAM2::ARCHandler("172.20.86.134", 9999, 0);
 
     // Max/Min Frames to insert keyframes and to check relocalisation
     mMinFrames = 0;
@@ -266,6 +266,33 @@ cv::Mat Tracking::GrabImageMonocular(const cv::Mat &im, const double &timestamp)
         mCurrentFrame = Frame(mImGray,timestamp,mpIniORBextractor,mpORBVocabulary,mK,mDistCoef,mbf,mThDepth,mpARCHandler);
     else
         mCurrentFrame = Frame(mImGray,timestamp,mpORBextractorLeft,mpORBVocabulary,mK,mDistCoef,mbf,mThDepth,mpARCHandler);
+
+    Track();
+
+    // Return the clone of the pose
+    return mCurrentFrame.mTcw.clone();
+}
+
+cv::Mat Tracking::GrabImageMonocularRemote(const cv::Mat &im) //TODO: remove im parameter
+{
+    mImGray = im;
+
+    if(mImGray.channels()==3)
+    {
+        if(mbRGB)
+            cvtColor(mImGray,mImGray,CV_RGB2GRAY);
+        else
+            cvtColor(mImGray,mImGray,CV_BGR2GRAY);
+    }
+    else if(mImGray.channels()==4)
+    {
+        if(mbRGB)
+            cvtColor(mImGray,mImGray,CV_RGBA2GRAY);
+        else
+            cvtColor(mImGray,mImGray,CV_BGRA2GRAY);
+    }
+
+    mCurrentFrame = Frame(mImGray.cols, mImGray.rows,mpORBextractorLeft,mpORBVocabulary,mK,mDistCoef,mbf,mThDepth,mpARCHandler);
 
     Track();
 
