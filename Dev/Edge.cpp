@@ -5,6 +5,7 @@
 #include <cvORBNetStream.h>
 
 #include <opencv2/features2d.hpp>
+#include <opencv2/cudafeatures2d.hpp>
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/videoio.hpp>
@@ -19,6 +20,7 @@
 #include <numeric>
 
 #define USE_ANMS false
+#define USE_CUDA true
 
 void LoadImages(const std::string &strImagePath, const std::string &strPathTimes,
                 std::vector<std::string> &vstrImages, std::vector<double> &vTimeStamps);
@@ -67,10 +69,16 @@ int main(int argc, char *argv[])
   //      ---------------------
   std::vector<KeyPoint> keypoints;
   std::vector<KeyPoint> filteredKeypoints;
-  Mat descriptors;
   int nFeatures = 10000;
-  int limit = 500;
+  int limit = 2000;
+#if USE_CUDA
+  cuda::GpuMat descriptors;
+  Mat descriptorsCPU;
+  Ptr<cuda::ORB> orb = cuda::ORB::create(USE_ANMS ? nFeatures : limit, 1.2f, 8, 31, 0, 2, ORB::HARRIS_SCORE, 31, 20, false);
+#else
+  Mat descriptors;
   Ptr<ORB> orb = ORB::create(USE_ANMS ? nFeatures : limit, 1.2f, 8, 31, 0, 2, ORB::HARRIS_SCORE, 31, 20);
+#endif
   //      ---------------------
 
   // Initialize a timer
@@ -79,6 +87,10 @@ int main(int argc, char *argv[])
 
   cv::Mat frame;
   frame = cv::imread(vstrImageFilenames[0], cv::IMREAD_UNCHANGED);
+
+#if USE_CUDA
+  cuda::GpuMat frameGPU(frame);
+#endif
 
   if (frame.empty())
   {
@@ -95,25 +107,33 @@ int main(int argc, char *argv[])
     // This processs by itself takes around 40 ms to complete. Be wary of this as it is a huge bottleneck.
     frame = cv::imread(vstrImageFilenames[i], cv::IMREAD_UNCHANGED);
 
-    // ---------------------
-    // Process the frame
-    // ---------------------
-    // orb->detectAndCompute(frame, cv::Mat(), keypoints, descriptors);
-    // int numKeyPoints = keypoints.size();
+// ---------------------
+// Process the frame
+// ---------------------
+#if USE_CUDA
+    frameGPU.upload(frame);
+    orb->detect(frameGPU, keypoints);
+#else
     orb->detect(frame, keypoints);
-    if (USE_ANMS)
-    {
-      filteredKeypoints = ANMS_SSC(keypoints, limit, 0.1, frame.cols, frame.rows);
-    }
-    else
-    {
-      filteredKeypoints = keypoints;
-    }
+#endif
+
+#if USE_ANMS
+    filteredKeypoints = ANMS_SSC(keypoints, limit, 0.1, frame.cols, frame.rows);
+#else
+    filteredKeypoints = keypoints;
+#endif
+
+#if USE_CUDA
+    orb->clear();
+    orb->compute(frameGPU, filteredKeypoints, descriptors);
+    descriptors.download(descriptorsCPU);
+    int numKeyPoints = filteredKeypoints.size();
+    orbStream.encodeAndSendFrame(filteredKeypoints, descriptorsCPU, numKeyPoints, i);
+#else
     orb->compute(frame, filteredKeypoints, descriptors);
     int numKeyPoints = filteredKeypoints.size();
-
-    // Encode and Send
     orbStream.encodeAndSendFrame(filteredKeypoints, descriptors, numKeyPoints, i);
+#endif
   }
 
   // Stop the timer
