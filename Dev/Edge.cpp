@@ -113,8 +113,9 @@ int main(int argc, char *argv[])
     // Create the stream that will be processed in the provided backend
     vpiCall(vpiStreamCreate, backend, &stream);
     vpiCall(vpiInitORBParams, &orbParams);
-    orbParams.fastParams.intensityThreshold = 30;
-    orbParams.maxFeatures = 1000;
+    orbParams.fastParams.intensityThreshold = 20;
+    orbParams.pyramidLevels = 8;
+    orbParams.maxFeatures = 5000;
     //      ---------------------
 
     // Initialize a timer

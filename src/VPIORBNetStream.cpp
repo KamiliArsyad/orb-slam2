@@ -41,14 +41,28 @@ namespace ORB_SLAM2
     // Encode the keypoints and descriptors
     for (int i = 0; i < numKeypoints; ++i)
     {
+      // Copy the descriptor to a bitset
+      std::bitset<256> descriptor; 
+
+      for (int j = 0; j < 4; ++j)
+      {
+        descriptor |= ((uint64_t *)descriptorsData.buffer.aos.data)[i * 4 + j];
+        if (j < 3) descriptor <<= 64;
+      }
+     
       // Encode the descriptor to 32 characters
-      std::bitset<256> descriptor(((uint16_t *)descriptorsData.buffer.aos.data)[i]);
       for (int j = 0; j < 32; ++j)
       {
-        unsigned long byte = descriptor.to_ulong() >> j & 0xFF;
-        char c = static_cast<char>(byte);
-        ss << c;
+        unsigned char byte = 0;
+
+        for (int k = 0; k < 8; ++k)
+        {
+          byte |= descriptor[j * 8 + k] << k;
+        }
+
+        ss << byte; 
       }
+      
       ss << ";";
 
       // Encode the keypoint

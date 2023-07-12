@@ -22,6 +22,7 @@
 #include "Converter.h"
 #include "ORBmatcher.h"
 #include <thread>
+#include "ARCHandler.h"
 
 namespace ORB_SLAM2
 {
@@ -171,6 +172,7 @@ Frame::Frame(const cv::Mat &imGray, const cv::Mat &imDepth, const double &timeSt
 }
 
 
+// ARCHandler
 /**
  * @brief Constructs a new Frame object for monocular ORB-SLAM2:
  *      Computes the scale pyramid for the image, extracts ORB features, 
@@ -188,7 +190,7 @@ Frame::Frame(const cv::Mat &imGray, const cv::Mat &imDepth, const double &timeSt
  * @param bf The baseline times the focal length (for stereo cameras).
  * @param thDepth The depth threshold.
  */
-Frame::Frame(const cv::Mat &imGray, const double &timeStamp, ORBextractor* extractor,ORBVocabulary* voc, cv::Mat &K, cv::Mat &distCoef, const float &bf, const float &thDepth)
+Frame::Frame(const cv::Mat &imGray, const double &timeStamp, ORBextractor* extractor,ORBVocabulary* voc, cv::Mat &K, cv::Mat &distCoef, const float &bf, const float &thDepth, ARCHandler* archandler)
     :mpORBvocabulary(voc),mpORBextractorLeft(extractor),mpORBextractorRight(static_cast<ORBextractor*>(NULL)),
      mTimeStamp(timeStamp), mK(K.clone()),mDistCoef(distCoef.clone()), mbf(bf), mThDepth(thDepth)
 {
@@ -204,8 +206,27 @@ Frame::Frame(const cv::Mat &imGray, const double &timeStamp, ORBextractor* extra
     mvLevelSigma2 = mpORBextractorLeft->GetScaleSigmaSquares();
     mvInvLevelSigma2 = mpORBextractorLeft->GetInverseScaleSigmaSquares();
 
+    // TEST RECEIVE ARCHANDLER
+    std::vector<cv::KeyPoint> vTestKeypoints;
+    cv::Mat vTestDescriptors;
+    
+    archandler->getFeatures(mvKeys, mDescriptors);
+    std::cout << "Received " << mvKeys.size() << " keypoints" << std::endl;
+
+    // DEBUG -----------------------
+    // Print out the first 10 keypoints and their respective ORB descriptors (binary string)
+    // for (int i = 0; i < 10; i++) {
+    //     std::cout << "KeyPoint " << i << ": " << mvKeys[i].pt << " " << mDescriptors.row(i) << std::endl;
+    // }
+
     // ORB extraction
-    ExtractORB(0,imGray);
+    // if (mnId < 100)
+    // ExtractORB(0,imGray);
+    // print out the first 10 keypoints after ORB extraction
+    // for (int i = 0; i < 10; i++) {
+    //     std::cout << "KeyPoint " << i << ": " << mvKeys[i].pt << " " << mDescriptors.row(i) << std::endl;
+    // }
+    // -----------------------------
 
     N = mvKeys.size();
 

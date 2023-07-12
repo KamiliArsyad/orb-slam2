@@ -70,22 +70,15 @@ int main(int argc, char **argv)
     std::cout << std::endl << "-------" << std::endl;
     std::cout << "Initializing ARCHandler Stream ..." << std::endl;
 
-    ORB_SLAM2::ARCHandler archandler("localhost", 9999, 0);
-
     cout << endl << "-------" << endl;
     cout << "Start processing sequence ..." << endl;
     cout << "Images in the sequence: " << nImages << endl << endl;
 
     // Main loop
     cv::Mat im;
+    // nImages = 2;
     for(int ni=0; ni<nImages; ni++)
-    {
-        // TEST RECEIVE ARCHANDLER
-        std::vector<cv::KeyPoint> vTestKeypoints;
-        cv::Mat vTestDescriptors;
-        
-        archandler.getFeatures(vTestKeypoints, vTestDescriptors);
-        std::cout << "Received " << vTestKeypoints.size() << " keypoints" << std::endl;
+    { 
         // Read image from file
         im = cv::imread(vstrImageFilenames[ni],IMREAD_UNCHANGED);
         double tframe = vTimestamps[ni];
