@@ -1,14 +1,13 @@
-#include <vpi/Array.h>
-#include <vpi/Stream.h>
-
+#include <opencv2/core.hpp>
 #include <bitset>
 #include <string>
-
 #include <zmq.hpp>
+
+using namespace cv;
 
 namespace ORB_SLAM2
 {
-  class VPIORBNetStream
+  class cvORBNetStream
   {
   private:
     zmq::context_t context;
@@ -21,11 +20,11 @@ namespace ORB_SLAM2
      * <frameNumber>;<numKeypoints>;<desc1>;<x1>,<y1>;<desc2>;<x2>,<y2>;...
      * The descriptors are encoded as 32 characters ASCII strings for efficiency.
      */
-    std::string encodeKeypoints(VPIArray keypointsArray, VPIArray descriptorsArray, int numKeypoints, int frameNumber);
+    std::string encodeKeypoints(std::vector<KeyPoint> keypointsArray, Mat descriptorsArray, int numKeypoints, int frameNumber);
 
   public:
-    VPIORBNetStream(int port);
-    ~VPIORBNetStream();
+    cvORBNetStream(int port);
+    ~cvORBNetStream();
 
     /**
      * Send an encoded frame.
@@ -34,6 +33,6 @@ namespace ORB_SLAM2
      */
     int sendFrame(std::string encodedFrame);
 
-    int encodeAndSendFrame(VPIArray keypointsArray, VPIArray descriptorsArray, int numKeypoints, int frameNumber);
+    int encodeAndSendFrame(std::vector<KeyPoint> keypointsArray, Mat descriptorsArray, int numKeypoints, int frameNumber);
   };
 } // namespace ORB_SLAM2

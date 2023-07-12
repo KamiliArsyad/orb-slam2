@@ -2,102 +2,61 @@
  * This code is made for monocular eurocc dataset. No setting file is needed or used as of right now as we
  * are only ensure that the proposed model is working.
  */
-#include <VPIORBNetStream.h>
+#include <cvORBNetStream.h>
 
 #include <opencv2/features2d.hpp>
+#include <opencv2/cudafeatures2d.hpp>
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/videoio.hpp>
 #include <opencv2/core/core.hpp>
-#include <vpi/OpenCVInterop.hpp>
 
-#include <vpi/Array.h>
-#include <vpi/Image.h>
-#include <vpi/ImageFormat.h>
-#include <vpi/Pyramid.h>
-#include <vpi/Status.h>
-#include <vpi/Stream.h>
-#include <vpi/algo/ConvertImageFormat.h>
-#include <vpi/algo/GaussianPyramid.h>
-#include <vpi/algo/ImageFlip.h>
-#include <vpi/algo/ORB.h>
-
-#include <bitset>
 #include <cstdio>
 #include <cstring> // for memset
 #include <iostream>
 #include <sstream>
 #include <fstream>
 #include <exception>
+#include <numeric>
 
-// Custom exception class for VPI errors
-class VPIException : public std::exception
-{
-public:
-  VPIException(VPIStatus status)
-      : msg("VPI error: " + std::string(vpiStatusGetName(status))) {}
-
-  const char *what() const noexcept override
-  {
-    return msg.c_str();
-  }
-
-private:
-  std::string msg;
-};
-
-// Wrapper function for VPI calls
-template <typename Func, typename... Args>
-void vpiCall(Func func, Args... args)
-{
-  VPIStatus status = func(args...);
-  if (status != VPI_SUCCESS)
-  {
-    throw VPIException(status);
-  }
-}
+#define USE_ANMS false
+#define USE_CUDA true
 
 void LoadImages(const std::string &strImagePath, const std::string &strPathTimes,
                 std::vector<std::string> &vstrImages, std::vector<double> &vTimeStamps);
+
+/**
+ * @brief Adaptive Non-Maximal Suppression (ANMS) using Supresion via Square Covering (SSC).
+ *        The algorithm is based on the paper "Efficient adaptive non-maximal suppression algorithms
+ *        for homogeneous spatial keypoint distribution" by Bailo, et al. (2018). The code is sourced
+ *        from the repository referenced in the paper with some minor modifications (if any).
+ * @param unsortedKeypoints The keypoints to be sorted and filtered.
+ * @param numRetPoints The maximum number of keypoints to be returned.
+ * @param tolerance The tolerance parameter for the SSC algorithm.
+ * @param cols The number of columns in the image.
+ * @param rows The number of rows in the image.
+ */
+std::vector<KeyPoint> ANMS_SSC(std::vector<KeyPoint> unsortedKeypoints, int numRetPoints, float tolerance, int cols, int rows);
+
 /**
  * First argument: backend (<cpu|cuda>)
  * Second argument: the sequence directory
  */
 int main(int argc, char *argv[])
 {
-  // OpenCV image that will be wrapped by a VPIImage.
-  // Define it here so that it's destroyed *after* wrapper is destroyed
-  VPIPayload orbPayload = NULL;
-  VPIStream stream = NULL;
-
   int returnValue = 0;
 
   // Parse parameters
-  if (argc != 4)
+  if (argc != 3)
   {
-    throw std::runtime_error(std::string("Usage: ") + argv[0] + " <cpu|cuda> <path_to_image_folder>" + " <path_to_times_file>");
-  }
-
-  VPIBackend backend;
-  
-  if (strcmp(argv[1], "cpu") == 0)
-  {
-    backend = VPI_BACKEND_CPU;
-  }
-  else if (strcmp(argv[1], "cuda") == 0)
-  {
-    backend = VPI_BACKEND_CUDA;
-  }
-  else
-  {
-    throw std::runtime_error("Invalid backend");
+    throw std::runtime_error(std::string("Usage: ") + argv[0] + " <path_to_image_folder>" + " <path_to_times_file>");
   }
 
   std::vector<std::string> vstrImageFilenames;
   std::vector<double> vTimestamps;
 
   // Load images and timestamps
-  LoadImages(argv[2], argv[3], vstrImageFilenames, vTimestamps);
+  LoadImages(argv[1], argv[2], vstrImageFilenames, vTimestamps);
 
   int numOfFrames = vstrImageFilenames.size();
 
@@ -106,125 +65,80 @@ int main(int argc, char *argv[])
     throw std::runtime_error("Couldn't load images");
   }
 
-  try
+  //      CV ORB creation
+  //      ---------------------
+  std::vector<KeyPoint> keypoints;
+  std::vector<KeyPoint> filteredKeypoints;
+  int nFeatures = 10000;
+  int limit = 2000;
+#if USE_CUDA
+  cuda::GpuMat descriptors;
+  Mat descriptorsCPU;
+  Ptr<cuda::ORB> orb = cuda::ORB::create(USE_ANMS ? nFeatures : limit, 1.2f, 8, 31, 0, 2, ORB::HARRIS_SCORE, 31, 20, false);
+#else
+  Mat descriptors;
+  Ptr<ORB> orb = ORB::create(USE_ANMS ? nFeatures : limit, 1.2f, 8, 31, 0, 2, ORB::HARRIS_SCORE, 31, 20);
+#endif
+  //      ---------------------
+
+  // Initialize a timer
+  cv::TickMeter timer;
+  timer.start();
+
+  cv::Mat frame;
+  frame = cv::imread(vstrImageFilenames[0], cv::IMREAD_UNCHANGED);
+
+#if USE_CUDA
+  cuda::GpuMat frameGPU(frame);
+#endif
+
+  if (frame.empty())
   {
-    //      ---------------------
-    VPIORBParams orbParams;
-    // Create the stream that will be processed in the provided backend
-    vpiCall(vpiStreamCreate, backend, &stream);
-    vpiCall(vpiInitORBParams, &orbParams);
-    orbParams.fastParams.intensityThreshold = 20;
-    orbParams.pyramidLevels = 8;
-    orbParams.maxFeatures = 5000;
-    //      ---------------------
-
-    // Initialize a timer
-    cv::TickMeter timer;
-    timer.start();
-
-    // Declare VPI objects
-    VPIPyramid pyrInput = NULL;
-    VPIImage vpiFrame = NULL;
-    VPIImage vpiFrameGrayScale = NULL;
-    VPIArray keypoints = NULL;
-    VPIArray descriptors = NULL;
-
-    cv::Mat frame;
-    frame = cv::imread(vstrImageFilenames[0], cv::IMREAD_UNCHANGED);
-
-    if (frame.empty())
-    {
-      throw std::runtime_error("Couldn't load image");
-    }
-
-    vpiCall(vpiImageCreate, frame.cols, frame.rows, VPI_IMAGE_FORMAT_U8, 0, &vpiFrameGrayScale);
-
-    // Setup a worker stream
-    ORB_SLAM2::VPIORBNetStream orbStream(9999);
-
-    // Create the output keypoint array.
-    vpiCall(vpiArrayCreate,
-            orbParams.maxFeatures,
-            VPI_ARRAY_TYPE_KEYPOINT_F32,
-            backend | VPI_BACKEND_CPU,
-            &keypoints);
-
-    // Create the output descriptors array.
-    vpiCall(vpiArrayCreate,
-            orbParams.maxFeatures,
-            VPI_ARRAY_TYPE_BRIEF_DESCRIPTOR,
-            backend | VPI_BACKEND_CPU,
-            &descriptors);
-
-    // Create the payload for ORB Feature Detector algorithm
-    vpiCall(vpiCreateORBFeatureDetector, backend, 10000, &orbPayload);
-
-    // Create the pyramid
-    vpiCall(vpiPyramidCreate, frame.cols, frame.rows, VPI_IMAGE_FORMAT_U8, orbParams.pyramidLevels, 0.5,
-            backend, &pyrInput);
-
-    // Process each frame
-    for (int i = 0; i < numOfFrames; i++)
-    {
-      printf("processing frame %d\n", i);
-      frame = cv::imread(vstrImageFilenames[i], cv::IMREAD_UNCHANGED);
-
-      // We now wrap the loaded image into a VPIImage object to be used by VPI.
-      // VPI won't make a copy of it, so the original image must be in scope at all times.
-      if (i == 0)
-      {
-        vpiImageCreateWrapperOpenCVMat(frame, 0, &vpiFrame);
-      }
-      else
-      {
-        vpiImageSetWrappedOpenCVMat(vpiFrame, frame);
-      }
-
-      // ---------------------
-      // Process the frame
-      // ---------------------
-
-      // Convert to grayscale
-      vpiCall(vpiSubmitConvertImageFormat, stream, backend, vpiFrame, vpiFrameGrayScale, nullptr);
-
-      // Submit the pyramid generator
-      vpiCall(vpiSubmitGaussianPyramidGenerator, stream, backend,
-              vpiFrameGrayScale, pyrInput, VPI_BORDER_CLAMP);
-
-      // Detect ORB features
-      vpiCall(vpiSubmitORBFeatureDetector, stream, backend, orbPayload,
-              pyrInput, keypoints, descriptors, &orbParams, VPI_BORDER_CLAMP);
-
-      // TODO: Do we need this?
-      vpiCall(vpiStreamSync, stream);
-
-      // Stream it out
-      int32_t numKeypoints;
-      vpiCall(vpiArrayGetSize, keypoints, &numKeypoints);
-
-      // Encode and Send
-      orbStream.encodeAndSendFrame(keypoints, descriptors, numKeypoints, i);
-    }
-
-    vpiArrayDestroy(keypoints);
-    vpiArrayDestroy(descriptors);
-    vpiImageDestroy(vpiFrame);
-    vpiImageDestroy(vpiFrameGrayScale);
-    vpiPyramidDestroy(pyrInput);
-
-    // Stop the timer
-    timer.stop();
-    printf("Processing time per frame: %f ms\n", timer.getTimeMilli() / numOfFrames);
-  }
-  catch (const VPIException &e)
-  {
-    std::cerr << e.what() << '\n';
-    returnValue = -1;
+    throw std::runtime_error("Couldn't load image");
   }
 
-  // Cleanup
-  vpiPayloadDestroy(orbPayload);
-  vpiStreamDestroy(stream);
+  // Setup a worker stream
+  ORB_SLAM2::cvORBNetStream orbStream(9999);
+
+  // Process each frame
+  for (int i = 0; i < numOfFrames; i++)
+  {
+    printf("processing frame %d\n", i);
+    // This processs by itself takes around 40 ms to complete. Be wary of this as it is a huge bottleneck.
+    frame = cv::imread(vstrImageFilenames[i], cv::IMREAD_UNCHANGED);
+
+// ---------------------
+// Process the frame
+// ---------------------
+#if USE_CUDA
+    frameGPU.upload(frame);
+    orb->detect(frameGPU, keypoints);
+#else
+    orb->detect(frame, keypoints);
+#endif
+
+#if USE_ANMS
+    filteredKeypoints = ANMS_SSC(keypoints, limit, 0.1, frame.cols, frame.rows);
+#else
+    filteredKeypoints = keypoints;
+#endif
+
+#if USE_CUDA
+    orb->clear();
+    orb->compute(frameGPU, filteredKeypoints, descriptors);
+    descriptors.download(descriptorsCPU);
+    int numKeyPoints = filteredKeypoints.size();
+    orbStream.encodeAndSendFrame(filteredKeypoints, descriptorsCPU, numKeyPoints, i);
+#else
+    orb->compute(frame, filteredKeypoints, descriptors);
+    int numKeyPoints = filteredKeypoints.size();
+    orbStream.encodeAndSendFrame(filteredKeypoints, descriptors, numKeyPoints, i);
+#endif
+  }
+
+  // Stop the timer
+  timer.stop();
+  printf("Processing time per frame: %f ms\n", timer.getTimeMilli() / numOfFrames);
 
   return returnValue;
 }
@@ -250,4 +164,117 @@ void LoadImages(const std::string &strImagePath, const std::string &strPathTimes
       vTimeStamps.push_back(t / 1e9);
     }
   }
+}
+
+std::vector<KeyPoint> ANMS_SSC(std::vector<KeyPoint> unsortedKeypoints, int numRetPoints, float tolerance, int cols, int rows)
+{
+  // Sort the keypoints by decreasing strength
+  std::vector<float> responseVector;
+  for (unsigned int i = 0; i < unsortedKeypoints.size(); i++)
+    responseVector.push_back(unsortedKeypoints[i].response);
+  std::vector<int> Indx(responseVector.size());
+  std::iota(std::begin(Indx), std::end(Indx), 0);
+  sortIdx(responseVector, Indx, cv::SORT_DESCENDING);
+
+  // The sorted keypoints
+  std::vector<KeyPoint> keypoints;
+  for (unsigned int i = 0; i < unsortedKeypoints.size(); i++)
+    keypoints.push_back(unsortedKeypoints[Indx[i]]);
+
+  // several temp expression variables to simplify solution equation
+  int exp1 = rows + cols + 2 * numRetPoints;
+  long long exp2 =
+      ((long long)4 * cols + (long long)4 * numRetPoints +
+       (long long)4 * rows * numRetPoints + (long long)rows * rows +
+       (long long)cols * cols - (long long)2 * rows * cols +
+       (long long)4 * rows * cols * numRetPoints);
+  double exp3 = sqrt(exp2);
+  double exp4 = numRetPoints - 1;
+
+  double sol1 = -round((exp1 + exp3) / exp4); // first solution
+  double sol2 = -round((exp1 - exp3) / exp4); // second solution
+
+  // binary search range initialization with positive solution
+  int high = (sol1 > sol2) ? sol1 : sol2;
+  int low = floor(sqrt((double)keypoints.size() / numRetPoints));
+  low = max(1, low);
+
+  int width;
+  int prevWidth = -1;
+
+  std::vector<int> ResultVec;
+  bool complete = false;
+  unsigned int K = numRetPoints;
+  unsigned int Kmin = round(K - (K * tolerance));
+  unsigned int Kmax = round(K + (K * tolerance));
+
+  std::vector<int> result;
+  result.reserve(keypoints.size());
+  while (!complete)
+  {
+    width = low + (high - low) / 2;
+    if (width == prevWidth ||
+        low >
+            high)
+    {                     // needed to reassure the same radius is not repeated again
+      ResultVec = result; // return the keypoints from the previous iteration
+      break;
+    }
+    result.clear();
+    double c = (double)width / 2.0; // initializing Grid
+    int numCellCols = floor(cols / c);
+    int numCellRows = floor(rows / c);
+    std::vector<std::vector<bool>> coveredVec(numCellRows + 1,
+                                              std::vector<bool>(numCellCols + 1, false));
+
+    for (unsigned int i = 0; i < keypoints.size(); ++i)
+    {
+      int row =
+          floor(keypoints[i].pt.y /
+                c); // get position of the cell current point is located at
+      int col = floor(keypoints[i].pt.x / c);
+      if (coveredVec[row][col] == false)
+      { // if the cell is not covered
+        result.push_back(i);
+        int rowMin = ((row - floor(width / c)) >= 0)
+                         ? (row - floor(width / c))
+                         : 0; // get range which current radius is covering
+        int rowMax = ((row + floor(width / c)) <= numCellRows)
+                         ? (row + floor(width / c))
+                         : numCellRows;
+        int colMin =
+            ((col - floor(width / c)) >= 0) ? (col - floor(width / c)) : 0;
+        int colMax = ((col + floor(width / c)) <= numCellCols)
+                         ? (col + floor(width / c))
+                         : numCellCols;
+        for (int rowToCov = rowMin; rowToCov <= rowMax; ++rowToCov)
+        {
+          for (int colToCov = colMin; colToCov <= colMax; ++colToCov)
+          {
+            if (!coveredVec[rowToCov][colToCov])
+              coveredVec[rowToCov][colToCov] =
+                  true; // cover cells within the square bounding box with width
+                        // w
+          }
+        }
+      }
+    }
+
+    if (result.size() >= Kmin && result.size() <= Kmax)
+    { // solution found
+      ResultVec = result;
+      complete = true;
+    }
+    else if (result.size() < Kmin)
+      high = width - 1; // update binary search range
+    else
+      low = width + 1;
+    prevWidth = width;
+  }
+  // retrieve final keypoints
+  std::vector<KeyPoint> kp;
+  for (unsigned int i = 0; i < ResultVec.size(); i++)
+    kp.push_back(keypoints[ResultVec[i]]);
+
+  return kp;
 }
