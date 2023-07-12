@@ -172,7 +172,6 @@ Frame::Frame(const cv::Mat &imGray, const cv::Mat &imDepth, const double &timeSt
 }
 
 
-// ARCHandler
 /**
  * @brief Constructs a new Frame object for monocular ORB-SLAM2:
  *      Computes the scale pyramid for the image, extracts ORB features, 
@@ -190,7 +189,7 @@ Frame::Frame(const cv::Mat &imGray, const cv::Mat &imDepth, const double &timeSt
  * @param bf The baseline times the focal length (for stereo cameras).
  * @param thDepth The depth threshold.
  */
-Frame::Frame(const cv::Mat &imGray, const double &timeStamp, ORBextractor* extractor,ORBVocabulary* voc, cv::Mat &K, cv::Mat &distCoef, const float &bf, const float &thDepth, ARCHandler* archandler)
+Frame::Frame(const cv::Mat &imGray, const double &timeStamp, ORBextractor* extractor,ORBVocabulary* voc, cv::Mat &K, cv::Mat &distCoef, const float &bf, const float &thDepth)
     :mpORBvocabulary(voc),mpORBextractorLeft(extractor),mpORBextractorRight(static_cast<ORBextractor*>(NULL)),
      mTimeStamp(timeStamp), mK(K.clone()),mDistCoef(distCoef.clone()), mbf(bf), mThDepth(thDepth)
 {
@@ -206,28 +205,9 @@ Frame::Frame(const cv::Mat &imGray, const double &timeStamp, ORBextractor* extra
     mvLevelSigma2 = mpORBextractorLeft->GetScaleSigmaSquares();
     mvInvLevelSigma2 = mpORBextractorLeft->GetInverseScaleSigmaSquares();
 
-    // TEST RECEIVE ARCHANDLER
-    std::vector<cv::KeyPoint> vTestKeypoints;
-    cv::Mat vTestDescriptors;
-    
-    archandler->getFeatures(mvKeys, mDescriptors);
-    std::cout << "Received " << mvKeys.size() << " keypoints" << std::endl;
-
-    // DEBUG -----------------------
-    // Print out the first 10 keypoints and their respective ORB descriptors (binary string)
-    // for (int i = 0; i < 10; i++) {
-    //     std::cout << "KeyPoint " << i << ": " << mvKeys[i].pt << " " << mDescriptors.row(i) << std::endl;
-    // }
-
     // ORB extraction
-    // if (mnId < 100)
-    // ExtractORB(0,imGray);
-    // print out the first 10 keypoints after ORB extraction
-    // for (int i = 0; i < 10; i++) {
-    //     std::cout << "KeyPoint " << i << ": " << mvKeys[i].pt << " " << mDescriptors.row(i) << std::endl;
-    // }
-    // -----------------------------
-
+    ExtractORB(0,imGray);
+    
     N = mvKeys.size();
 
     if(mvKeys.empty())
@@ -264,6 +244,85 @@ Frame::Frame(const cv::Mat &imGray, const double &timeStamp, ORBextractor* extra
 
     AssignFeaturesToGrid();
 }
+
+// ARCHandler
+/**
+ * @brief Constructs a new Frame object for monocular ORB-SLAM2:
+ *      Computes the scale pyramid for the image, extracts ORB features, 
+ *      undistorts keypoints, and assigns features to a grid for efficient spatial queries. 
+ *      It also initializes various other properties of the Frame, such as the camera intrinsics 
+ *      and extrinsics, and the grid element size.
+ *      mvuRight, mvDepth, mvpMapPoints, and mvbOutlier are not used.
+ *
+ * @param imWidth The width of the grayscale image for the frame.
+ * @param imHeight The height of the grayscale image for the frame.
+ * @param extractor The ORB extractor to use for feature extraction.
+ * @param voc The ORB vocabulary to use for feature description.
+ * @param K The camera calibration matrix.
+ * @param distCoef The distortion coefficients of the camera.
+ * @param bf The baseline times the focal length (for stereo cameras).
+ * @param thDepth The depth threshold.
+ */
+Frame::Frame(int imWidth, int imHeight, ORBextractor* extractor,ORBVocabulary* voc, cv::Mat &K, cv::Mat &distCoef, const float &bf, const float &thDepth, ARCHandler* archandler)
+    :mpORBvocabulary(voc),mpORBextractorLeft(extractor),mpORBextractorRight(static_cast<ORBextractor*>(NULL)),
+     mK(K.clone()),mDistCoef(distCoef.clone()), mbf(bf), mThDepth(thDepth)
+{
+    // Frame ID
+    mnId=nNextId++;
+
+    // Scale Level Info
+    mnScaleLevels = mpORBextractorLeft->GetLevels();
+    mfScaleFactor = mpORBextractorLeft->GetScaleFactor();
+    mfLogScaleFactor = log(mfScaleFactor);
+    mvScaleFactors = mpORBextractorLeft->GetScaleFactors();
+    mvInvScaleFactors = mpORBextractorLeft->GetInverseScaleFactors();
+    mvLevelSigma2 = mpORBextractorLeft->GetScaleSigmaSquares();
+    mvInvLevelSigma2 = mpORBextractorLeft->GetInverseScaleSigmaSquares();
+
+    // TEST RECEIVE ARCHANDLER
+    std::vector<cv::KeyPoint> vTestKeypoints;
+    cv::Mat vTestDescriptors;
+    
+    archandler->getFeatures(mvKeys, mDescriptors);
+
+    N = mvKeys.size();
+
+    if(mvKeys.empty())
+        return;
+
+    UndistortKeyPoints();
+
+    // Set no stereo information
+    mvuRight = vector<float>(N,-1);
+    mvDepth = vector<float>(N,-1);
+
+    mvpMapPoints = vector<MapPoint*>(N,static_cast<MapPoint*>(NULL));
+    mvbOutlier = vector<bool>(N,false);
+
+    // This is done only for the first Frame (or after a change in the calibration)
+    if(mbInitialComputations)
+    {
+        ComputeImageBoundsRemote(imWidth, imHeight);
+
+        mfGridElementWidthInv=static_cast<float>(FRAME_GRID_COLS)/static_cast<float>(mnMaxX-mnMinX);
+        mfGridElementHeightInv=static_cast<float>(FRAME_GRID_ROWS)/static_cast<float>(mnMaxY-mnMinY);
+
+        fx = K.at<float>(0,0);
+        fy = K.at<float>(1,1);
+        cx = K.at<float>(0,2);
+        cy = K.at<float>(1,2);
+        invfx = 1.0f/fx;
+        invfy = 1.0f/fy;
+
+        mbInitialComputations=false;
+    }
+
+    mb = mbf/fx;
+
+    AssignFeaturesToGrid();
+}
+
+
 
 void Frame::AssignFeaturesToGrid()
 {
@@ -504,6 +563,39 @@ void Frame::ComputeImageBounds(const cv::Mat &imLeft)
         mnMaxX = imLeft.cols;
         mnMinY = 0.0f;
         mnMaxY = imLeft.rows;
+    }
+}
+
+/// @brief
+/// @param imHeight
+/// @param imWidth 
+void Frame::ComputeImageBoundsRemote(const int imWidth, const int imHeight)
+{
+    if(mDistCoef.at<float>(0)!=0.0)
+    {
+        cv::Mat mat(4,2,CV_32F);
+        mat.at<float>(0,0)=0.0; mat.at<float>(0,1)=0.0;
+        mat.at<float>(1,0)=imWidth; mat.at<float>(1,1)=0.0;
+        mat.at<float>(2,0)=0.0; mat.at<float>(2,1)=imHeight;
+        mat.at<float>(3,0)=imWidth; mat.at<float>(3,1)=imHeight;
+
+        // Undistort corners
+        mat=mat.reshape(2);
+        cv::undistortPoints(mat,mat,mK,mDistCoef,cv::Mat(),mK);
+        mat=mat.reshape(1);
+
+        mnMinX = min(mat.at<float>(0,0),mat.at<float>(2,0));
+        mnMaxX = max(mat.at<float>(1,0),mat.at<float>(3,0));
+        mnMinY = min(mat.at<float>(0,1),mat.at<float>(1,1));
+        mnMaxY = max(mat.at<float>(2,1),mat.at<float>(3,1));
+
+    }
+    else
+    {
+        mnMinX = 0.0f;
+        mnMaxX = imWidth;
+        mnMinY = 0.0f;
+        mnMaxY = imHeight;
     }
 }
 
