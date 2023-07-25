@@ -42,5 +42,7 @@ namespace ORB_SLAM2
     ~ARCHandler();
 
     void getFeatures(std::vector<cv::KeyPoint> &keypoints, cv::OutputArray descriptors);
+
+    void getFeaturesFast(cv::Mat &descriptors, std::vector<cv::KeyPoint> &keypoints, cv::Mat &image);
   };
 } // namespace ORB_SLAM2

@@ -117,6 +117,14 @@ System::System(const string &strVocFile, const string &strSettingsFile, const eS
     mpLoopCloser->SetLocalMapper(mpLocalMapper);
 }
 
+/**
+ * @brief get the map
+*/
+Map* System::GetMap()
+{
+    return mpMap;
+}
+
 cv::Mat System::TrackStereo(const cv::Mat &imLeft, const cv::Mat &imRight, const double &timestamp)
 {
     if(mSensor!=STEREO)
@@ -272,7 +280,7 @@ cv::Mat System::TrackMonocular(const cv::Mat &im, const double &timestamp)
     return Tcw;
 }
 
-cv::Mat System::TrackMonocularRemote(const cv::Mat &im)
+cv::Mat System::TrackMonocularRemote(cv::Mat &im)
 {
     if(mSensor!=MONOCULAR)
     {

@@ -82,20 +82,22 @@ int main(int argc, char **argv)
     // Stop all threads
     SLAM.Shutdown();
 
-    // Tracking time statistics
-    sort(vTimesTrack.begin(), vTimesTrack.end());
-    float totaltime = 0;
-    for (int ni = 0; ni < nImages; ni++)
-    {
-        totaltime += vTimesTrack[ni];
-    }
-    cout << "-------" << endl
-         << endl;
-    cout << "median tracking time: " << vTimesTrack[nImages / 2] << endl;
-    cout << "mean tracking time: " << totaltime / nImages << endl;
-
     // Save camera trajectory
-    SLAM.SaveKeyFrameTrajectoryTUM("KeyFrameTrajectory.txt");
+    // SLAM.SaveKeyFrameTrajectoryTUM("KeyFrameTrajectory.txt");
+
+    // Get the stored map points as a tuple of length 3 (x, y, z)
+    std::vector<ORB_SLAM2::MapPoint *> mapPoints = SLAM.GetMap()->GetAllMapPoints();
+    std::vector<std::tuple<float, float, float>> mapPointsTuple;
+    std::ofstream mapPointsFile("mapPoints.txt");
+
+    for (ORB_SLAM2::MapPoint *mp : mapPoints)
+    {
+        cv::Mat pos = mp->GetWorldPos();
+        mapPointsFile << pos.at<float>(0) << " " << pos.at<float>(1) << " " << pos.at<float>(2) << std::endl;
+    }
+    
+
+    mapPointsFile.close();
 
     return 0;
 }
