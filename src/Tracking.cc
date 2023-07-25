@@ -274,7 +274,7 @@ cv::Mat Tracking::GrabImageMonocular(const cv::Mat &im, const double &timestamp)
     return mCurrentFrame.mTcw.clone();
 }
 
-cv::Mat Tracking::GrabImageMonocularRemote(const cv::Mat &im) //TODO: remove im parameter
+cv::Mat Tracking::GrabImageMonocularRemote(cv::Mat &im) //TODO: remove im parameter
 {
     mImGray = im;
 
@@ -293,7 +293,7 @@ cv::Mat Tracking::GrabImageMonocularRemote(const cv::Mat &im) //TODO: remove im 
             cvtColor(mImGray,mImGray,CV_BGRA2GRAY);
     }
 
-    mCurrentFrame = Frame(mImGray.cols, mImGray.rows,mpORBextractorLeft,mpORBVocabulary,mK,mDistCoef,mbf,mThDepth,mpARCHandler);
+    mCurrentFrame = Frame(mImGray.cols, mImGray.rows,mpORBextractorLeft,mpORBVocabulary,mK,mDistCoef,mbf,mThDepth,mpARCHandler, im);
 
     Track();
 

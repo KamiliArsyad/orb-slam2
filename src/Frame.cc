@@ -263,7 +263,7 @@ Frame::Frame(const cv::Mat &imGray, const double &timeStamp, ORBextractor* extra
  * @param bf The baseline times the focal length (for stereo cameras).
  * @param thDepth The depth threshold.
  */
-Frame::Frame(int imWidth, int imHeight, ORBextractor* extractor,ORBVocabulary* voc, cv::Mat &K, cv::Mat &distCoef, const float &bf, const float &thDepth, ARCHandler* archandler)
+Frame::Frame(int imWidth, int imHeight, ORBextractor* extractor,ORBVocabulary* voc, cv::Mat &K, cv::Mat &distCoef, const float &bf, const float &thDepth, ARCHandler* archandler, cv::Mat &im)
     :mpORBvocabulary(voc),mpORBextractorLeft(extractor),mpORBextractorRight(static_cast<ORBextractor*>(NULL)),
      mK(K.clone()),mDistCoef(distCoef.clone()), mbf(bf), mThDepth(thDepth)
 {
@@ -283,7 +283,8 @@ Frame::Frame(int imWidth, int imHeight, ORBextractor* extractor,ORBVocabulary* v
     std::vector<cv::KeyPoint> vTestKeypoints;
     cv::Mat vTestDescriptors;
     
-    archandler->getFeatures(mvKeys, mDescriptors);
+    // archandler->getFeatures(mvKeys, mDescriptors);
+    archandler->getFeaturesFast(mDescriptors, mvKeys, im);
 
     N = mvKeys.size();
 

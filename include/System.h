@@ -82,7 +82,7 @@ public:
 
     // Process a monocular frame from a remote client.
     // TODO: remove the dummy im parameter
-    cv::Mat TrackMonocularRemote(const cv::Mat &im);
+    cv::Mat TrackMonocularRemote(cv::Mat &im);
 
     // This stops local mapping thread (map building) and performs only camera tracking.
     void ActivateLocalizationMode();
@@ -118,6 +118,9 @@ public:
     // Call first Shutdown()
     // See format details at: http://www.cvlibs.net/datasets/kitti/eval_odometry.php
     void SaveTrajectoryKITTI(const string &filename);
+
+    // Get the map
+    Map* GetMap();
 
     // TODO: Save/Load functions
     // SaveMap(const string &filename);

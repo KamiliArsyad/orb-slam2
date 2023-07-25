@@ -60,7 +60,7 @@ public:
 
     // ARCHandler
     // Constructor for Remote Monocular cameras.
-    Frame(int imWidth, int imHeight, ORBextractor* extractor,ORBVocabulary* voc, cv::Mat &K, cv::Mat &distCoef, const float &bf, const float &thDepth, ARCHandler* archandler);
+    Frame(int imWidth, int imHeight, ORBextractor* extractor,ORBVocabulary* voc, cv::Mat &K, cv::Mat &distCoef, const float &bf, const float &thDepth, ARCHandler* archandler, cv::Mat &im);
 
     // Extract ORB on the image. 0 for left image and 1 for right image.
     void ExtractORB(int flag, const cv::Mat &im);
