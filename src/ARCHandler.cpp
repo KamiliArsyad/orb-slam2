@@ -200,9 +200,14 @@ namespace ORB_SLAM2
         keypoints.push_back(cv::KeyPoint(x, y, 1));
       }
 
-      // Get the image
+      // Get the image if it exists
+      if (message.size() <= 6 + 32 * numKeypoints + 4 * numKeypoints)
+      {
+        return;
+      }
       uint32_t imgSize;
       memcpy(&imgSize, static_cast<char *>(message.data()) + 6 + 32 * numKeypoints + 4 * numKeypoints, 4);
+
 
       std::vector<uchar> data(static_cast<char *>(message.data()) + 6 + 32 * numKeypoints + 4 * numKeypoints + 4,
                               static_cast<char *>(message.data()) + 6 + 32 * numKeypoints + 4 * numKeypoints + 4 +
