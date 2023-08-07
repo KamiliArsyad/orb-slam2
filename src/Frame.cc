@@ -282,9 +282,10 @@ Frame::Frame(int imWidth, int imHeight, ORBextractor* extractor,ORBVocabulary* v
     // TEST RECEIVE ARCHANDLER
     std::vector<cv::KeyPoint> vTestKeypoints;
     cv::Mat vTestDescriptors;
+    double vTestTimeStamp;
     
     // archandler->getFeatures(mvKeys, mDescriptors);
-    archandler->getFeaturesFast(mDescriptors, mvKeys, im);
+    archandler->getFeaturesFast(mDescriptors, mvKeys, im, vTestTimeStamp);
 
     N = mvKeys.size();
 
