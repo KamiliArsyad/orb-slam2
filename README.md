@@ -1,6 +1,14 @@
 # ARCH-ORB-SLAM2
-Forked from mateomd-dev as setting up the support for C++14 and OpenCV 4 was quite painful. I added a system called ARCH - Asynchronous Remote Computation Handler for ORB-SLAM2 which I won't elaborate for now.
-The system is still in development and is not ready for use.
+Forked from mateomd-dev as setting up the support for C++14 and OpenCV 4 was quite painful. I added a system called ARCH - Asynchronous Remote Computation Handler for ORB-SLAM2 to handle the remote ORB features.
+To run this code, build the project as usual and then you can run the driver code that I created in [`./Dev/CloudMonocular.cpp`](./Dev/CloudMonocular.cpp). e.g. from the root directory of the project:
+```
+Dev/cloud Vocabulary/ORBvoc.txt Dev/SampleSettings.yaml Dev/sample_images/1280_720.png 1000
+```
+
+In case it's still not clear, this repository is an implementation of a remote visual ORB-SLAM2 whereby the whole system running here runs as usual but the ORB features are extracted from another place and received using ARCHandler.
+A more mature documentation is available in my ORB-SLAM3 integration with ARCH [here](https://github.com/KamiliArsyad/ORB_SLAM3). An implementation of the edge device is also implemented in the cvORB repository [here](https://github.com/KamiliArsyad/ORB_SLAM3).
+
+I suggest running the ORB-SLAM3 implementation first as the driver code is more gentle and the documentation is better. If you need to understand the code, however, you can go and explore this repository as the mechanism is less complex.
 
 Below is the README file from the original repository.
 # ORB-SLAM2

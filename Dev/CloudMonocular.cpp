@@ -37,7 +37,7 @@ int main(int argc, char **argv)
     if (argc != 5)
     {
         cerr << endl
-             << "Usage: ./mono_tum path_to_vocabulary path_to_settings path_to_sample_image num_of_images" << endl;
+             << "Usage: ./cloud path_to_vocabulary path_to_settings path_to_sample_image num_of_images" << endl;
         return 1;
     }
 
